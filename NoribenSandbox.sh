@@ -16,7 +16,11 @@ VM_PASS=password
 NORIBEN_PATH="C:\\Users\\user\\Desktop\\tools\\Noriben\\Noriben.py"
 ZIP_PATH="C:\\gnu32\\bin\\7z.exe"
 LOG_PATH="C:\\Noriben_Logs"
+
+# On a victim system configured with sysmon i
+# (I use sysmon with the SwiftOnSecurity config)
 DUMP_SYSMON="YES"
+
 > /tmp/malware.bat
 
 MALWAREFILE=$1
@@ -54,6 +58,7 @@ if [ $? -gt 0 ]; then
     exit
 fi
 
+# Use Windows evtutil to dump sysmon logs for collection
 if [ ! -z $DUMP_SYSMON ]; then "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "c:\\windows\\system32\\wevtutil.exe" epl Microsoft-Windows-Sysmon/Operational "$LOG_PATH\\sysmon.evtx"; fi 
 
 if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$ZIP_PATH" -j C:\\NoribenReports.zip "$LOG_PATH\\*.*"; fi
