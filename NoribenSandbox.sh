@@ -8,15 +8,16 @@
 #Ensure you set the environment variables below to match your system
 NORIBEN_DEBUG=""
 DELAY=10
-VMRUN=/Applications/VMware\ Fusion.app/Contents/Library/vmrun
-VMX=~/VMs/Win7_VICTIM.vmwarevm/Win7_VICTIM.vmx
-VM_SNAPSHOT="Baseline"
-VM_USER=Admin
+VMRUN=~/vmrun
+VMX=~/Documents/win7victim/Windows\ 7\ x64.vmx
+VM_SNAPSHOT="baseline"
+VM_USER=user
 VM_PASS=password
-NORIBEN_PATH="C:\\Documents and Settings\\$VM_USER\\Desktop\\Noriben.py"
-ZIP_PATH=C:\\gnuwin32\\bin\\zip.exe
-LOG_PATH=C:\\Noriben_Logs
-
+NORIBEN_PATH="C:\\Users\\user\\Desktop\\tools\\Noriben\\Noriben.py"
+ZIP_PATH="C:\\gnu32\\bin\\7z.exe"
+LOG_PATH="C:\\Noriben_Logs"
+DUMP_SYSMON="YES"
+> /tmp/malware.bat
 
 MALWAREFILE=$1
 if [ ! -f $1 ]; then
@@ -25,6 +26,8 @@ if [ ! -f $1 ]; then
     echo "$0 ~/malware/ef8188aa1dfa2ab07af527bab6c8baf7"
     exit
 fi
+
+CMD_ARGS=$2
 
 FILENAME=$(basename $MALWAREFILE)
 if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws revertToSnapshot "$VMX" $VM_SNAPSHOT; fi
@@ -36,19 +39,29 @@ if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws start "$VMX"; fi
 if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -gu $VM_USER  -gp $VM_PASS copyFileFromHostToGuest "$VMX" "$MALWAREFILE" C:\\Malware\\malware.exe; fi
 "$VMRUN" -gu $VM_USER  -gp $VM_PASS copyFileFromHostToGuest "$VMX" "$MALWAREFILE" C:\\Malware\\malware.exe
 
-if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive C:\\Python27\\Python.exe "$NORIBEN_PATH" -d -t $DELAY --cmd "C:\\Malware\\Malware.exe" --output "$LOG_PATH"; fi
-"$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive C:\\Python27\\Python.exe "$NORIBEN_PATH" -d -t $DELAY --cmd "C:\\Malware\\Malware.exe" --output "$LOG_PATH"
+if [ ! -z $CMD_ARGS ]; then echo "C:\\Malware\\malware.exe $CMD_ARGS" > /tmp/malware.bat; "$VMRUN" -gu $VM_USER  -gp $VM_PASS copyFileFromHostToGuest "$VMX" "/tmp/malware.bat" C:\\Malware\\malware.bat; fi
+
+if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$NORIBEN_PATH" -d -t $DELAY --cmd "C:\\Malware\\Malware.exe" --output "$LOG_PATH"; fi
+
+if [ ! -z $CMD_ARGS ]; then 
+    "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "C:\\Users\\user\\AppData\Local\\Programs\\Python\\Python36\\python.exe" "$NORIBEN_PATH" -d -t $DELAY --cmd "C:\\Malware\\Malware.bat" --output "$LOG_PATH" 
+else 
+    "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "C:\\Users\\user\\AppData\Local\\Programs\\Python\\Python36\\python.exe" "$NORIBEN_PATH" -d -t $DELAY --cmd "C:\\Malware\\Malware.exe" --output "$LOG_PATH" 
+fi
+
 if [ $? -gt 0 ]; then
     echo "[!] File did not execute in VM correctly."
     exit
 fi
 
-if [ ! -z $NORIBEN_DEBUG ]; then "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$ZIP_PATH" -j C:\\NoribenReports.zip "$LOG_PATH\\*.*"; fi
-"$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$ZIP_PATH" -j C:\\NoribenReports.zip "$LOG_PATH\\*.*"
+if [ ! -z $DUMP_SYSMON ]; then "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "c:\\windows\\system32\\wevtutil.exe" epl Microsoft-Windows-Sysmon/Operational "$LOG_PATH\\sysmon.evtx"; fi 
+
+if [ ! -z $NORIBEN_DEBUG ]; then echo "$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$ZIP_PATH" -j C:\\NoribenReports.zip "$LOG_PATH\\*.*"; fi
+"$VMRUN" -T ws -gu $VM_USER -gp $VM_PASS runProgramInGuest "$VMX" -activeWindow -interactive "$ZIP_PATH" a "C:\\NoribenReports.7z" "$LOG_PATH\\*.*"
 if [ $? -eq 12 ]; then
     echo "[!] ERROR: No files found in Noriben output folder to ZIP."
     exit
 fi
-"$VMRUN" -gu $VM_USER -gp $VM_PASS copyFileFromGuestToHost "$VMX" C:\\NoribenReports.zip $PWD/NoribenReports_$FILENAME.zip
+"$VMRUN" -gu $VM_USER -gp $VM_PASS copyFileFromGuestToHost "$VMX" "C:\\NoribenReports.7z" $PWD/NoribenReports_$FILENAME.7z
 
 
